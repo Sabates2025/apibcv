@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BCV Cursos - Tasas de Cambio</title>
+    <meta name="description" content="Consulta las tasas de cambio del Banco Central de Venezuela en tiempo real">
+    <meta name="theme-color" content="#764ba2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="BCV Cursos">
+    
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMjQiIGZpbGw9InVybCgjZ3JhZGllbnQpIi8+CjxwYXRoIGQ9Ik05NiA0OEM3My45MDg2IDQ4IDU2IDY1LjkwODYgNTYgODhWMTQ0QzU2IDE2Ni4wOTEgNzMuOTA4NiAxODQgOTYgMTg0QzExOC4wOTEgMTg0IDEzNiAxNjYuMDkxIDEzNiAxNDRWODhDMTM2IDY1LjkwODYgMTE4LjA5MSA0OCA5NiA0OFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik04OCA2NEgxMDRWMTI4SDg4VjY0WiIgZmlsbD0iIzY2N2VlYSIvPgo8ZGVmcz4KPGxpbmVhckdyYWRpZW50IGlkPSJncmFkaWVudCIgeDE9IjAiIHkxPSIwIiB4Mj0iMTkyIiB5Mj0iMTkyIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CjxzdG9wIHN0b3AtY29sb3I9IiM2NjdlZWEiLz4KPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNzY0YmEyIi8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPC9zdmc+">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <h1 class="title">
+                    <i class="fas fa-coins"></i>
+                    BCV Cursos
+                </h1>
+                <p class="subtitle">Tasas de Cambio del Banco Central de Venezuela</p>
+                <div class="last-update">
+                    <i class="fas fa-clock"></i>
+                    <span id="lastUpdate">Última actualización: --</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="main">
+            <div class="controls">
+                <button id="refreshBtn" class="btn btn-primary">
+                    <i class="fas fa-sync-alt"></i>
+                    Actualizar
+                </button>
+                <div class="auto-refresh">
+                    <label for="autoRefresh">
+                        <input type="checkbox" id="autoRefresh" checked>
+                        Auto-actualizar cada 5 min
+                    </label>
+                </div>
+            </div>
+
+            <div class="currencies-grid" id="currenciesGrid">
+                <!-- Las monedas se cargarán dinámicamente aquí -->
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Cargando tasas de cambio...</p>
+            </div>
+
+            <div class="error" id="error" style="display: none;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p id="errorMessage">Error al cargar los datos</p>
+                <button id="retryBtn" class="btn btn-secondary">Reintentar</button>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2024 BCV Cursos. Datos obtenidos del <a href="http://www.bcv.org.ve/" target="_blank" rel="noopener">Banco Central de Venezuela</a></p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 
