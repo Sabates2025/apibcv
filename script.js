@@ -66,26 +66,13 @@ async function fetchData() {
     try {
         let currencies;
         
-        // Debug: mostrar información del entorno
+        // NUNCA usar API PHP en GitHub Pages - solo en localhost
         console.log('Hostname:', window.location.hostname);
-        console.log('Protocol:', window.location.protocol);
-        console.log('Full URL:', window.location.href);
         
-        // Detección más robusta del entorno
-        const isGitHubPages = window.location.hostname.includes('github.io') || 
-                             window.location.hostname.includes('githubusercontent.com');
-        
-        const isLocalDevelopment = (window.location.hostname === 'localhost' || 
-                                   window.location.hostname === '127.0.0.1') && 
-                                   !isGitHubPages;
-        
-        console.log('Is GitHub Pages:', isGitHubPages);
-        console.log('Is Local Development:', isLocalDevelopment);
-        
-        // Solo usar API PHP en desarrollo local
-        if (isLocalDevelopment) {
+        // Usar API PHP SOLO si hostname es exactamente localhost o 127.0.0.1
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
             try {
-                console.log('Entorno local detectado - Intentando con API PHP...');
+                console.log('Localhost detectado - Intentando con API PHP...');
                 const response = await fetch('./api.php', {
                     method: 'GET',
                     headers: {
@@ -110,7 +97,7 @@ async function fetchData() {
                 console.log('API PHP local falló:', apiError.message);
             }
         } else {
-            console.log('Entorno remoto/GitHub Pages - Saltando API PHP');
+            console.log('NO es localhost - Saltando completamente API PHP');
         }
         
         // Si la API local falla, intentar con proxies CORS
@@ -393,25 +380,18 @@ window.addEventListener('error', (event) => {
 // Service Worker para cache offline (opcional)
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        // Determinar la ruta correcta del service worker
-        let swPath = './sw.js'; // Usar ruta relativa por defecto
-        
-        // Para GitHub Pages, usar la ruta completa del directorio actual
-        if (window.location.hostname.includes('github.io')) {
-            swPath = window.location.pathname.endsWith('/') ? 
-                `${window.location.pathname}sw.js` : 
-                `${window.location.pathname}/sw.js`;
+        // Solo registrar service worker en localhost
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.log('Registrando service worker en localhost...');
+            navigator.serviceWorker.register('./sw.js')
+                .then(registration => {
+                    console.log('SW registered: ', registration);
+                })
+                .catch(registrationError => {
+                    console.log('SW registration failed: ', registrationError);
+                });
+        } else {
+            console.log('GitHub Pages detectado - Service Worker deshabilitado');
         }
-        
-        console.log('Registrando service worker en:', swPath);
-        
-        navigator.serviceWorker.register(swPath)
-            .then(registration => {
-                console.log('SW registered: ', registration);
-            })
-            .catch(registrationError => {
-                console.log('SW registration failed: ', registrationError);
-                // No mostrar error al usuario, solo loggearlo
-            });
     });
 } 
