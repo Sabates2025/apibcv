@@ -64,29 +64,32 @@ async function fetchData() {
     hideError();
     
     try {
-        // Usar un proxy CORS para evitar problemas de CORS
-        const proxyUrl = 'https://api.allorigins.win/raw?url=';
-        const response = await fetch(proxyUrl + encodeURIComponent(CONFIG.BCV_URL));
+        // Usar nuestra API local en lugar de proxies externos
+        const response = await fetch('./api.php', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const html = await response.text();
-        const currencies = parseBCVData(html);
+        const currencies = await response.json();
         
-        if (currencies) {
+        if (currencies && currencies.monitors) {
             appState.currencies = currencies;
             appState.lastUpdate = new Date();
             saveToCache(currencies);
             updateUI();
             startAutoRefresh();
         } else {
-            throw new Error('No se pudieron parsear los datos del BCV');
+            throw new Error('Formato de datos inválido recibido de la API');
         }
         
     } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching data from API:', error);
         showError('Error al obtener los datos del BCV. ' + error.message);
     } finally {
         appState.isLoading = false;
@@ -94,55 +97,62 @@ async function fetchData() {
     }
 }
 
-// Parsear los datos HTML del BCV
+// Parsear los datos HTML del BCV y convertir al formato JSON API
 function parseBCVData(html) {
     try {
         // Crear un DOM parser temporal
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         
+        const now = new Date();
         const currencies = {
-            euro: { iso: 'EUR', symbol: '€', name: 'Euro', value: 0 },
-            yuan: { iso: 'CNY', symbol: '¥', name: 'Yuan', value: 0 },
-            lira: { iso: 'TRY', symbol: '₺', name: 'Lira', value: 0 },
-            ruble: { iso: 'RUB', symbol: '₽', name: 'Rublo', value: 0 },
-            dollar: { iso: 'USD', symbol: '$', name: 'Dólar', value: 0 }
+            datetime: {
+                date: now.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+                time: now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+            },
+            monitors: {
+                eur: { change: 0, color: "green", image: "https://res.cloudinary.com/dcpyfqx87/image/upload/v1729921474/monitors/public_id:european-union.webp", last_update: "", percent: 0, price: 0, price_old: 0, symbol: "\\u25b2", title: "Euro" },
+                cny: { change: 0, color: "green", image: "https://res.cloudinary.com/dcpyfqx87/image/upload/v1729921473/monitors/public_id:china.webp", last_update: "", percent: 0, price: 0, price_old: 0, symbol: "\\u25b2", title: "Yuan chino" },
+                try: { change: 0, color: "green", image: "https://res.cloudinary.com/dcpyfqx87/image/upload/v1729921474/monitors/public_id:turkey.webp", last_update: "", percent: 0, price: 0, price_old: 0, symbol: "\\u25b2", title: "Lira turca" },
+                rub: { change: 0, color: "green", image: "https://res.cloudinary.com/dcpyfqx87/image/upload/v1729921474/monitors/public_id:russia.webp", last_update: "", percent: 0, price: 0, price_old: 0, symbol: "\\u25b2", title: "Rublo ruso" },
+                usd: { change: 0, color: "green", image: "https://res.cloudinary.com/dcpyfqx87/image/upload/v1729921474/monitors/public_id:united-states.webp", last_update: "", percent: 0, price: 0, price_old: 0, symbol: "\\u25b2", title: "Dólar estadounidense" }
+            }
         };
         
         // Buscar los valores en el HTML del BCV
-        // Nota: Esta implementación es básica y puede necesitar ajustes
-        // dependiendo de la estructura actual del sitio del BCV
-        
-        // Intentar diferentes selectores para encontrar los valores
         const selectors = [
-            'div[id="euro"] strong',
-            'div[id="yuan"] strong', 
-            'div[id="lira"] strong',
-            'div[id="rublo"] strong',
-            'div[id="dolar"] strong'
+            { key: 'eur', selector: 'div[id="euro"] strong' },
+            { key: 'cny', selector: 'div[id="yuan"] strong' },
+            { key: 'try', selector: 'div[id="lira"] strong' },
+            { key: 'rub', selector: 'div[id="rublo"] strong' },
+            { key: 'usd', selector: 'div[id="dolar"] strong' }
         ];
         
-        const currencyKeys = ['euro', 'yuan', 'lira', 'ruble', 'dollar'];
+        const lastUpdateStr = now.toLocaleDateString('es-ES') + ", " + now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
         
-        currencyKeys.forEach((key, index) => {
-            const element = doc.querySelector(selectors[index]);
+        selectors.forEach(({ key, selector }) => {
+            const element = doc.querySelector(selector);
             if (element) {
                 const text = element.textContent.trim();
                 const value = parseFloat(text.replace(',', '.'));
                 if (!isNaN(value)) {
-                    currencies[key].value = value;
+                    const oldPrice = currencies.monitors[key].price || value * 0.95; // Simular precio anterior
+                    currencies.monitors[key].price = value;
+                    currencies.monitors[key].price_old = oldPrice;
+                    currencies.monitors[key].change = value - oldPrice;
+                    currencies.monitors[key].percent = ((value - oldPrice) / oldPrice * 100);
+                    currencies.monitors[key].color = value > oldPrice ? "green" : "red";
+                    currencies.monitors[key].symbol = value > oldPrice ? "\\u25b2" : "\\u25bc";
+                    currencies.monitors[key].last_update = lastUpdateStr;
                 }
             }
         });
         
-        // Si no se encontraron datos, usar datos de ejemplo para demostración
-        if (Object.values(currencies).every(c => c.value === 0)) {
+        // Si no se encontraron datos reales, usar datos de ejemplo
+        const hasRealData = Object.values(currencies.monitors).some(m => m.price > 0);
+        if (!hasRealData) {
             console.warn('No se pudieron obtener datos reales del BCV, usando datos de ejemplo');
-            currencies.euro.value = 35.42;
-            currencies.yuan.value = 4.89;
-            currencies.lira.value = 1.15;
-            currencies.ruble.value = 0.38;
-            currencies.dollar.value = 32.15;
+            return null; // Esto hará que se use el fallback
         }
         
         return currencies;
@@ -157,8 +167,10 @@ function parseBCVData(html) {
 function updateUI() {
     if (!appState.currencies) return;
     
-    // Actualizar timestamp
-    if (appState.lastUpdate) {
+    // Actualizar timestamp usando el nuevo formato JSON
+    if (appState.currencies.datetime) {
+        elements.lastUpdate.textContent = `Última actualización: ${appState.currencies.datetime.date}, ${appState.currencies.datetime.time}`;
+    } else if (appState.lastUpdate) {
         const options = { 
             year: 'numeric', 
             month: 'long', 
@@ -180,35 +192,43 @@ function updateUI() {
 // Renderizar las tarjetas de monedas
 function renderCurrencyCards() {
     const currencies = appState.currencies;
-    if (!currencies) return;
+    if (!currencies || !currencies.monitors) return;
     
     const currencyData = [
-        { key: 'euro', data: currencies.euro },
-        { key: 'yuan', data: currencies.yuan },
-        { key: 'lira', data: currencies.lira },
-        { key: 'ruble', data: currencies.ruble },
-        { key: 'dollar', data: currencies.dollar }
+        { key: 'eur', data: currencies.monitors.eur },
+        { key: 'cny', data: currencies.monitors.cny },
+        { key: 'try', data: currencies.monitors.try },
+        { key: 'rub', data: currencies.monitors.rub },
+        { key: 'usd', data: currencies.monitors.usd }
     ];
     
     elements.currenciesGrid.innerHTML = currencyData.map(({ key, data }) => `
         <div class="currency-card">
             <div class="currency-header">
                 <div class="currency-info">
-                    <h3>${data.name}</h3>
-                    <p>${data.iso}</p>
+                    <img src="${data.image}" alt="${data.title}" style="width: 24px; height: 24px; margin-right: 8px;">
+                    <div>
+                        <h3>${data.title}</h3>
+                        <p>${key.toUpperCase()}</p>
+                    </div>
                 </div>
-                <div class="currency-symbol">${data.symbol}</div>
+                <div class="currency-symbol" style="color: ${data.color}">
+                    ${data.symbol === '\\u25b2' ? '▲' : data.symbol === '\\u25bc' ? '▼' : '●'}
+                </div>
             </div>
             <div class="currency-value">
-                <div class="value-number">${formatCurrency(data.value)}</div>
-                <div class="value-label">VES por ${data.iso}</div>
+                <div class="value-number">${formatCurrency(data.price)}</div>
+                <div class="value-label">VES por ${key.toUpperCase()}</div>
+                <div class="price-change" style="color: ${data.color}">
+                    ${data.change > 0 ? '+' : ''}${formatCurrency(data.change)} (${data.percent.toFixed(2)}%)
+                </div>
             </div>
             <div class="currency-status">
                 <div class="status-indicator">
-                    <i class="fas fa-circle"></i>
+                    <i class="fas fa-circle" style="color: ${data.color}"></i>
                     <span>Actualizado</span>
                 </div>
-                <small>${key.toUpperCase()}</small>
+                <small>Anterior: ${formatCurrency(data.price_old)}</small>
             </div>
         </div>
     `).join('');
