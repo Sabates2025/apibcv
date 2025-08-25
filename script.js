@@ -68,30 +68,35 @@ async function fetchData() {
         let response;
         let currencies;
         
-        try {
-            console.log('Intentando con API local...');
-            response = await fetch('./api.php', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
+        // Solo intentar API local si estamos en localhost (no en GitHub Pages)
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            try {
+                console.log('Intentando con API local...');
+                response = await fetch('./api.php', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (response.ok) {
+                    const jsonData = await response.json();
+                    if (jsonData && jsonData.monitors) {
+                        // Convertir formato JSON API al formato esperado por la UI
+                        currencies = {
+                            euro: { iso: 'EUR', symbol: '€', name: 'Euro', value: jsonData.monitors.eur.price },
+                            yuan: { iso: 'CNY', symbol: '¥', name: 'Yuan', value: jsonData.monitors.cny.price },
+                            lira: { iso: 'TRY', symbol: '₺', name: 'Lira', value: jsonData.monitors.try.price },
+                            ruble: { iso: 'RUB', symbol: '₽', name: 'Rublo', value: jsonData.monitors.rub.price },
+                            dollar: { iso: 'USD', symbol: '$', name: 'Dólar', value: jsonData.monitors.usd.price }
+                        };
+                    }
                 }
-            });
-            
-            if (response.ok) {
-                const jsonData = await response.json();
-                if (jsonData && jsonData.monitors) {
-                    // Convertir formato JSON API al formato esperado por la UI
-                    currencies = {
-                        euro: { iso: 'EUR', symbol: '€', name: 'Euro', value: jsonData.monitors.eur.price },
-                        yuan: { iso: 'CNY', symbol: '¥', name: 'Yuan', value: jsonData.monitors.cny.price },
-                        lira: { iso: 'TRY', symbol: '₺', name: 'Lira', value: jsonData.monitors.try.price },
-                        ruble: { iso: 'RUB', symbol: '₽', name: 'Rublo', value: jsonData.monitors.rub.price },
-                        dollar: { iso: 'USD', symbol: '$', name: 'Dólar', value: jsonData.monitors.usd.price }
-                    };
-                }
+            } catch (apiError) {
+                console.log('API local falló, intentando con proxies CORS...');
             }
-        } catch (apiError) {
-            console.log('API local falló, intentando con proxies CORS...');
+        } else {
+            console.log('En GitHub Pages, saltando API local y usando proxies CORS...');
         }
         
         // Si la API local falla, intentar con proxies CORS
@@ -374,7 +379,11 @@ window.addEventListener('error', (event) => {
 // Service Worker para cache offline (opcional)
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
+        // Determinar la ruta correcta del service worker
+        const swPath = window.location.hostname.includes('github.io') ? 
+            `${window.location.pathname}sw.js` : '/sw.js';
+        
+        navigator.serviceWorker.register(swPath)
             .then(registration => {
                 console.log('SW registered: ', registration);
             })
